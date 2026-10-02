@@ -1,63 +1,550 @@
-
 <!doctype html>
-<html lang="en">
+<html lang="it">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<meta name="description" content="">
-	<meta name="author" content="">
-	<title>Github projects | Luca Giacalone</title>
-	<link href="assets/bootstrap.min.css" rel="stylesheet">
-	<link href="jumbotron.css" rel="stylesheet">
-	<link rel="alternate icon" class="js-site-favicon" type="image/png" href="https://github.githubassets.com/favicons/favicon.png">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luca · Player One</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --panel: #161a2b;
+    --panel-edge: #2a3150;
+    --ink: #e8f0d8;
+    --ink-dim: #8a93b2;
+    --accent: #ffd23f;
+    --accent-2: #ff5c8a;
+    --cyan: #4de1ff;
+    /* Game Boy greens for the activity levels */
+    --l0: #1c2433;
+    --l1: #0f5c2e;
+    --l2: #2f9e44;
+    --l3: #8bd450;
+    --l4: #d8ff6b;
+    --cell: 13px;
+    --gap: 3px;
+    --px: 4px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "VT323", monospace;
+    font-size: 22px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    image-rendering: pixelated;
+  }
+  .pixel { font-family: "Press Start 2P", monospace; }
+
+  /* CRT overlay */
+  body::before, body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  }
+  body::before {
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.28) 0 1px, transparent 1px 3px);
+  }
+  body::after {
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%);
+  }
+
+  .stage { max-width: 1040px; margin: 0 auto; padding: 40px 16px 56px; position: relative; }
+
+  /* chunky pixel border */
+  .box {
+    background: var(--panel);
+    position: relative;
+    padding: 24px;
+    box-shadow:
+      0 calc(var(--px) * -1) 0 0 var(--panel-edge),
+      0 var(--px) 0 0 var(--panel-edge),
+      calc(var(--px) * -1) 0 0 0 var(--panel-edge),
+      var(--px) 0 0 0 var(--panel-edge),
+      0 0 0 calc(var(--px) * 2) var(--bg),
+      calc(var(--px) * 2) calc(var(--px) * 2) 0 calc(var(--px) * 1) #05060c;
+  }
+  .box-title {
+    position: absolute; top: -10px; left: 20px;
+    background: var(--bg); padding: 0 10px;
+    font-size: 10px; color: var(--accent); letter-spacing: 1px;
+  }
+
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 36px; gap: 16px; flex-wrap: wrap; }
+  .hud { font-size: 11px; line-height: 1.8; }
+  .hud .lbl { color: var(--accent-2); }
+  .hud .val { color: var(--ink); }
+  .blink { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center; margin-bottom: 44px; }
+  .avatar-wrap { background: #0a0c14; padding: 14px; box-shadow: inset 0 0 0 4px var(--panel-edge); }
+  #avatar { width: 120px; height: 140px; display: block; image-rendering: pixelated; animation: bob 1.2s steps(2) infinite; }
+  @keyframes bob { 50% { transform: translateY(-4px); } }
+  h1 { font-size: 26px; line-height: 1.5; color: var(--ink); text-shadow: 4px 4px 0 var(--accent-2); margin-bottom: 14px; }
+  .handle { font-size: 11px; color: var(--cyan); margin-bottom: 18px; }
+  .sheet { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 24px; }
+  .sheet dt { color: var(--ink-dim); }
+  .sheet dd { color: var(--ink); }
+  .xp { display: flex; align-items: center; gap: 12px; margin-top: 16px; font-size: 10px; }
+  .xp-bar { flex: 1; max-width: 340px; height: 16px; background: #0a0c14; box-shadow: inset 0 0 0 3px var(--panel-edge); padding: 3px; }
+  .xp-fill { height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--accent) 0 8px, #e6b800 8px 10px); transition: width 1.6s steps(20); }
+
+  /* Activity map */
+  .map-box { margin-bottom: 44px; }
+  .map-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+  .map-head h2 { font-size: 13px; color: var(--ink); }
+  .map-head .total { font-size: 11px; color: var(--accent); }
+  .scroller { overflow-x: auto; padding-bottom: 6px; }
+  .map { display: grid; grid-template-columns: 34px auto; gap: 8px 6px; width: max-content; position: relative; }
+  .months { grid-column: 2; position: relative; height: 12px; font-size: 8px; color: var(--ink-dim); }
+  .months span { position: absolute; top: 0; }
+  .days { display: grid; grid-template-rows: repeat(7, var(--cell)); gap: var(--gap); font-size: 7px; color: var(--ink-dim); align-items: center; }
+  .grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, var(--cell)); grid-auto-columns: var(--cell); gap: var(--gap); position: relative; }
+  .cell { width: var(--cell); height: var(--cell); background: var(--l0); opacity: 0; transform: scale(.2); }
+  .cell.on { opacity: 1; transform: scale(1); transition: transform .12s steps(3); }
+  .cell[data-l="1"] { background: var(--l1); }
+  .cell[data-l="2"] { background: var(--l2); }
+  .cell[data-l="3"] { background: var(--l3); }
+  .cell[data-l="4"] { background: var(--l4); box-shadow: 0 0 6px rgba(216,255,107,.55); }
+  .cell.empty { visibility: hidden; }
+  .cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #invader { position: absolute; top: -34px; left: 0; width: 22px; height: 16px; image-rendering: pixelated; transition: left .05s linear; opacity: 0; }
+  .legend { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 14px; font-size: 8px; color: var(--ink-dim); }
+  .legend i { width: var(--cell); height: var(--cell); display: inline-block; }
+  .legend span { margin: 0 6px; }
+
+  .tip {
+    position: fixed; pointer-events: none; z-index: 60; font-size: 9px; line-height: 1.6;
+    background: #05060c; color: var(--ink); padding: 8px 10px;
+    box-shadow: 0 0 0 3px var(--accent); opacity: 0; transform: translate(-50%, -130%); white-space: nowrap;
+  }
+  .tip b { color: var(--accent); font-weight: normal; }
+
+  /* Scores */
+  .scores { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 44px; }
+  .score { text-align: center; padding: 20px 10px; }
+  .score .k { font-size: 8px; color: var(--accent-2); margin-bottom: 14px; line-height: 1.6; }
+  .score .v { font-size: 22px; color: var(--ink); text-shadow: 3px 3px 0 #05060c; }
+  .score .s { font-family: "VT323", monospace; font-size: 20px; color: var(--ink-dim); margin-top: 10px; }
+
+  /* Achievements */
+  .ach { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .badge { display: flex; gap: 14px; align-items: center; padding: 12px; background: #0f1220; box-shadow: inset 0 0 0 3px var(--panel-edge); opacity: 0; transform: translateY(8px); transition: all .3s steps(4); }
+  .badge.on { opacity: 1; transform: none; }
+  .badge .ico { width: 40px; height: 40px; flex: none; display: grid; place-items: center; font-size: 16px; background: var(--accent); color: #05060c; box-shadow: inset -4px -4px 0 #c99a00, inset 4px 4px 0 #fff2a8; }
+  .badge.locked .ico { background: #3a4060; box-shadow: inset -4px -4px 0 #262b42, inset 4px 4px 0 #555c80; color: var(--ink-dim); }
+  .badge .t { font-size: 9px; color: var(--ink); margin-bottom: 6px; line-height: 1.5; }
+  .badge .d { font-size: 19px; color: var(--ink-dim); line-height: 1; }
+
+  footer { margin-top: 48px; text-align: center; font-size: 9px; color: var(--ink-dim); line-height: 2.2; }
+  footer a { color: var(--cyan); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+  kbd { font-family: inherit; color: var(--accent); }
+
+  /* Title screen */
+  #title {
+    position: fixed; inset: 0; z-index: 40; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; cursor: pointer;
+    text-align: center; padding: 16px;
+  }
+  #title .logo { font-size: clamp(22px, 5vw, 48px); line-height: 1.4; color: var(--accent); text-shadow: 5px 5px 0 var(--accent-2), 10px 10px 0 #05060c; }
+  #title .sub { font-size: 12px; color: var(--cyan); }
+  #title .press { font-size: 14px; color: var(--ink); }
+  #title .hint { font-size: 18px; color: var(--ink-dim); font-family: "VT323", monospace; }
+  #title.gone { display: none; }
+  .stars { position: absolute; inset: 0; overflow: hidden; z-index: -1; }
+  .stars i { position: absolute; width: 3px; height: 3px; background: #fff; animation: twinkle 2s steps(2) infinite; }
+  @keyframes twinkle { 50% { opacity: .2; } }
+
+  #sound { position: fixed; right: 16px; bottom: 16px; z-index: 45; font-size: 9px; background: var(--panel); color: var(--ink); border: 0; padding: 10px 12px; cursor: pointer; box-shadow: 0 0 0 3px var(--panel-edge); font-family: "Press Start 2P", monospace; }
+  #sound:hover { color: var(--accent); }
+
+  @media (max-width: 820px) {
+    .scores { grid-template-columns: repeat(2, 1fr); }
+    .score:last-child { grid-column: span 2; }
+    .hero { grid-template-columns: 1fr; justify-items: start; }
+    h1 { font-size: 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { animation: none !important; transition: none !important; }
+  }
+</style>
 </head>
 <body>
-<main role="main">
-	<div class="jumbotron">
-		<div class="container">
-			<h1 class="display-3">Hi there!</h1>
-			<p>I'm <strong>Luca Giacalone</strong> and I'm a PHP developer. Here are some of my personal projects.</p>
-		</div>
-	</div>
-	<div class="container">
-		<div class="row">
-			<div class="col-md-4">
-				<h2>Copycat</h2>
-				<p>Importing, exporting, converting, (etc...) could be a pain. I hope this could helps you to make it easier. </p>
-				<p><a class="btn btn-outline-info" href="https://github.com/lucajackal85/Copycat" target="_blank" role="button">Go to project &raquo;</a></p>
-			</div>
-			<div class="col-md-4">
-				<h2>ImageMerge</h2>
-				<p>A simple PHP libraty to manipulate images, it supports GIF, PNG and JPG. </p>
-				<p><a class="btn btn-outline-primary" href="https://github.com/lucajackal85/ImageMerge" role="button" target="_blank">Go to project &raquo;</a></p>
-			</div>
-			<div class="col-md-4">
-				<h2>BinLocator</h2>
-				<p>Find and get executable binaries installed in your system. </p>
-				<p><a class="btn btn-outline-dark" href="https://github.com/lucajackal85/BinLocator" role="button" target="_blank">Go to project &raquo;</a></p>
-			</div>
-		</div>
-		<div class="row">
-			<div class="col-md-4">
-				<h2>Giffhanger</h2>
-				<p>It generates Video previews in GIF or Video format. </p>
-				<p><a class="btn btn-outline-danger" href="https://github.com/lucajackal85/Giffhanger" target="_blank" role="button">Go to project &raquo;</a></p>
-			</div>
-			<div class="col-md-4">
-				<h2>Video Downloader</h2>
-				<p>It allows to download videos from different sources. </p>
-				<p><a class="btn btn-outline-warning" href="https://github.com/lucajackal85/VideoDownloader" target="_blank" role="button">Go to project &raquo;</a></p>
-			</div>
-		</div>
-		<hr>
-	</div>
+
+<div id="title" role="button" tabindex="0" aria-label="Start">
+  <div class="stars" id="stars"></div>
+  <div class="sub pixel">LUCAJACKAL85 PRESENTS</div>
+  <div class="logo pixel">LUCA<br>GIACALONE</div>
+  <div class="press pixel blink" id="press">LOADING…</div>
+  <div class="hint">click · enter · space</div>
+</div>
+
+<button id="sound" class="pixel" aria-pressed="true">♪ SOUND ON</button>
+
+<main class="stage">
+  <header>
+    <div class="hud pixel">
+      <div><span class="lbl">1UP</span>&nbsp;&nbsp;<span class="val" id="hud-score">000000</span></div>
+    </div>
+    <div class="hud pixel" style="text-align:center">
+      <div><span class="lbl">HI-SCORE</span></div>
+      <div class="val" id="hud-hi">000079</div>
+    </div>
+    <div class="hud pixel" style="text-align:right">
+      <div><span class="lbl">WORLD</span>&nbsp;&nbsp;<span class="val">GITHUB</span></div>
+      <div><span id="live" class="val">…</span></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="avatar-wrap"><canvas id="avatar" width="12" height="14" aria-label="Pixel avatar"></canvas></div>
+    <div>
+      <h1 class="pixel">PLAYER 1<br>LUCA GIACALONE</h1>
+      <div class="handle pixel">@lucajackal85 · SINCE 2015</div>
+      <dl class="sheet">
+        <dt>CLASS</dt><dd id="class">PHP Mage · Python Ranger</dd>
+        <dt>BASE</dt><dd>Planet Earth</dd>
+        <dt>GUILD</dt><dd>Goodlord</dd>
+        <dt>INVENTORY</dt><dd id="inventory">public repos loading…</dd>
+      </dl>
+      <div class="xp pixel">
+        <span id="lvl">LV ??</span>
+        <div class="xp-bar"><div class="xp-fill" id="xp"></div></div>
+        <span id="xp-txt" style="color:var(--ink-dim)"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="box map-box">
+    <span class="box-title pixel">STAGE 1 · ACTIVITY MAP</span>
+    <div class="map-head">
+      <h2 class="pixel">CONTRIBUTIONS · LAST 12 MONTHS</h2>
+      <div class="pixel" id="updated" style="font-size:8px;color:var(--ink-dim)"></div>
+      <div class="total pixel"><span id="total">0</span> COINS</div>
+    </div>
+    <div class="scroller">
+      <div class="map pixel">
+        <div></div>
+        <div class="months" id="months"></div>
+        <div class="days"><span></span><span>MON</span><span></span><span>WED</span><span></span><span>FRI</span><span></span></div>
+        <div class="grid" id="grid"><canvas id="invader" width="11" height="8"></canvas></div>
+      </div>
+    </div>
+    <div class="legend pixel">
+      <span>LESS</span>
+      <i style="background:var(--l0)"></i><i style="background:var(--l1)"></i><i style="background:var(--l2)"></i><i style="background:var(--l3)"></i><i style="background:var(--l4)"></i>
+      <span>MORE</span>
+    </div>
+  </section>
+
+  <section class="scores pixel" id="scores">
+    <div class="box score"><div class="k">TOTAL</div><div class="v" data-count="total">0</div><div class="s">contributions</div></div>
+    <div class="box score"><div class="k">ACTIVE DAYS</div><div class="v" data-count="active">0</div><div class="s" id="active-pct"></div></div>
+    <div class="box score"><div class="k">BEST DAY</div><div class="v" data-count="best">0</div><div class="s" id="best-date"></div></div>
+    <div class="box score"><div class="k">LONGEST COMBO</div><div class="v" data-count="streak">0</div><div class="s">days in a row</div></div>
+    <div class="box score"><div class="k">BEST MONTH</div><div class="v" data-count="bestMonth">0</div><div class="s" id="best-month"></div></div>
+  </section>
+
+  <section class="box">
+    <span class="box-title pixel">ACHIEVEMENTS</span>
+    <div class="ach" id="ach"></div>
+  </section>
+
+  <footer class="pixel">
+    <div><kbd>SPACE</kbd> REPLAY · <kbd>S</kbd> SOUND</div>
+    <div><a href="https://github.com/lucajackal85" target="_blank" rel="noopener">INSERT COIN ▸ GITHUB.COM/LUCAJACKAL85</a></div>
+    <div>© 2026 LUCAJACKAL85 ENTERTAINMENT</div>
+  </footer>
 </main>
-<footer class="container">
-	<p></p>
-</footer>
-<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-<script>window.jQuery || document.write('<script src="assets/jquery-slim.min.js"><\/script>')</script>
-<script src="assets/popper.min.js"></script>
-<script src="assets/bootstrap.min.js"></script>
+
+<div class="tip pixel" id="tip"></div>
+
+<script>
+// Fallback snapshot (fetched 2026-10-02), used only if the live API is unreachable
+const USER = "lucajackal85";
+const SNAPSHOT = {"start":"2025-09-28","end":"2026-10-02","c":[0,1,5,1,5,1,0,0,6,2,3,6,3,0,0,0,2,1,2,0,0,0,3,4,10,12,11,0,0,25,10,6,2,4,0,0,5,0,6,1,4,0,0,1,0,2,3,1,0,0,7,1,0,1,3,0,0,1,1,0,8,0,0,0,0,1,3,2,0,0,0,3,2,1,1,2,0,0,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,1,0,0,4,2,2,3,0,0,0,6,1,6,3,2,0,0,7,5,11,6,1,16,0,2,6,5,3,3,4,5,2,9,5,2,1,0,0,2,3,2,7,2,0,0,1,3,1,0,0,0,0,5,4,3,1,0,0,0,5,2,1,3,2,0,0,2,3,2,7,4,0,0,1,2,0,3,0,0,0,0,2,7,4,2,0,0,3,4,4,2,2,0,0,2,5,4,4,3,0,0,5,1,2,5,3,0,0,0,1,1,2,1,0,0,5,2,2,3,3,0,0,1,2,6,4,5,1,1,0,9,6,4,3,0,0,9,5,2,4,0,0,0,0,0,0,0,0,0,0,5,2,1,3,0,0,0,0,1,3,7,5,0,0,4,2,0,0,1,0,0,0,1,0,0,1,0,0,2,0,1,0,2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,3,16,0,3,6,4,8,5,0,0,2,5,2,2,1,0,0,6,6,1,3,0,0,0,0,2,3,4,1,0,0,3,4,8,4,3,0,0,4,1,0,3,8,0,0,0,2,2,9,16,19,1,0,4,13,27,79]};
+
+// ---------- Live data ----------
+// Contribution calendar scraped from the public profile (includes private contribution counts)
+async function fetchCalendar() {
+  const r = await fetch(`https://github-contributions-api.jogruber.de/v4/${USER}?y=last`);
+  if (!r.ok) throw new Error(r.status);
+  const j = await r.json();
+  const list = j.contributions.filter(d => d.date <= new Date().toISOString().slice(0, 10));
+  return { start: list[0].date, end: list[list.length - 1].date, c: list.map(d => d.count) };
+}
+// Public repos -> languages (unauthenticated GitHub REST, 60 req/h)
+async function fetchProfile() {
+  const r = await fetch(`https://api.github.com/users/${USER}/repos?per_page=100&type=owner`);
+  if (!r.ok) throw new Error(r.status);
+  const repos = (await r.json()).filter(x => !x.fork);
+  const langs = {};
+  repos.forEach(x => x.language && (langs[x.language] = (langs[x.language] || 0) + 1));
+  const top = Object.entries(langs).sort((a, b) => b[1] - a[1]);
+  const stars = repos.reduce((a, x) => a + x.stargazers_count, 0);
+  const pushed = repos.map(x => x.pushed_at).sort().pop();
+  return { repos: repos.length, top, stars, pushed };
+}
+const timeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+
+Promise.allSettled([timeout(fetchCalendar(), 6000), timeout(fetchProfile(), 6000)]).then(([cal, prof]) => {
+  const live = cal.status === "fulfilled";
+  boot(live ? cal.value : SNAPSHOT, live, prof.status === "fulfilled" ? prof.value : null);
+});
+
+function boot(DATA, LIVE, PROFILE) {
+
+const $ = (s) => document.querySelector(s);
+const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const pad = (n, w) => String(n).padStart(w, "0");
+
+// ---------- Derived stats ----------
+const start = new Date(DATA.start + "T00:00:00Z");
+const days = DATA.c.map((count, i) => {
+  const d = new Date(start); d.setUTCDate(d.getUTCDate() + i);
+  return { date: d, count };
+});
+const total = days.reduce((a, d) => a + d.count, 0);
+const active = days.filter(d => d.count > 0).length;
+const bestDay = days.reduce((a, d) => d.count > a.count ? d : a, days[0]);
+let streak = 0, run = 0;
+for (const d of days) { run = d.count ? run + 1 : 0; streak = Math.max(streak, run); }
+const byMonth = {};
+for (const d of days) {
+  const k = d.date.getUTCFullYear() + "-" + pad(d.date.getUTCMonth(), 2);
+  byMonth[k] = (byMonth[k] || 0) + d.count;
+}
+const [bestMonthKey, bestMonth] = Object.entries(byMonth).sort((a, b) => b[1] - a[1])[0];
+const weekend = days.filter(d => [0, 6].includes(d.date.getUTCDay())).reduce((a, d) => a + d.count, 0);
+const level = (c) => c === 0 ? 0 : c <= 3 ? 1 : c <= 8 ? 2 : c <= 20 ? 3 : 4;
+const fmt = (d) => pad(d.getUTCDate(), 2) + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear();
+
+const STATS = { total, active, best: bestDay.count, streak, bestMonth };
+
+// RPG level: 25 XP per level
+const LV = Math.floor(total / 25), XP_IN = total % 25;
+$("#hud-hi").textContent = pad(bestDay.count, 6);
+$("#live").innerHTML = LIVE ? '<span style="color:#8bd450">● LIVE</span>' : '<span style="color:var(--ink-dim)">○ SAVED</span>';
+$("#updated").textContent = (LIVE ? "UPDATED " : "SNAPSHOT ") + fmt(days[days.length - 1].date);
+const CLASSES = { PHP: "PHP Mage", Python: "Python Ranger", JavaScript: "JS Rogue", TypeScript: "TS Paladin", HTML: "HTML Bard", Go: "Go Monk", Shell: "Shell Druid", Java: "Java Knight" };
+if (PROFILE) {
+  const names = PROFILE.top.slice(0, 2).map(([l]) => CLASSES[l] || l + " Adept");
+  if (names.length) $("#class").textContent = names.join(" · ");
+  $("#inventory").textContent = `${PROFILE.repos} public repos · ${PROFILE.stars} ★`;
+} else {
+  $("#inventory").textContent = "30 repos · 13 PRs";
+}
+const topLang = PROFILE && PROFILE.top[0];
+$("#active-pct").textContent = Math.round(active / days.length * 100) + "% of days";
+$("#best-date").textContent = fmt(bestDay.date);
+$("#best-month").textContent = MONTHS[+bestMonthKey.slice(5)] + " " + bestMonthKey.slice(0, 4);
+
+// ---------- Pixel art ----------
+function drawSprite(canvas, rows, palette) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (palette[ch]) { ctx.fillStyle = palette[ch]; ctx.fillRect(x, y, 1, 1); }
+  }));
+}
+drawSprite($("#avatar"), [
+  "....HHHH....",
+  "...HHHHHH...",
+  "..HHHHHHHH..",
+  "..HSSSSSSH..",
+  "..SGGSSGGS..",
+  "..SSSSSSSS..",
+  "...SSMMSS...",
+  "....SSSS....",
+  "..BBBBBBBB..",
+  ".SBBBYYBBBS.",
+  ".SBBBBBBBBS.",
+  "..BBBBBBBB..",
+  "..LL....LL..",
+  ".KKK....KKK.",
+], { H: "#3b2416", S: "#f2c39b", G: "#05060c", M: "#b8324f", B: "#2f9e44", Y: "#ffd23f", L: "#3550a8", K: "#05060c" });
+
+const INVADER = [
+  "..X.....X..", "...X...X...", "..XXXXXXX..", ".XX.XXX.XX.",
+  "XXXXXXXXXXX", "X.XXXXXXX.X", "X.X.....X.X", "...XX.XX...",
+];
+const INVADER_B = [
+  "..X.....X..", "X..X...X..X", "X.XXXXXXX.X", "XXX.XXX.XXX",
+  "XXXXXXXXXXX", ".XXXXXXXXX.", "..X.....X..", ".X.......X.",
+];
+const inv = $("#invader");
+drawSprite(inv, INVADER, { X: "#ff5c8a" });
+
+// ---------- Build grid ----------
+const grid = $("#grid");
+const lead = start.getUTCDay(); // pad first column so rows line up with weekdays
+const cells = [];
+for (let i = 0; i < lead; i++) {
+  const e = document.createElement("div"); e.className = "cell empty"; grid.appendChild(e);
+}
+days.forEach((d) => {
+  const e = document.createElement("div");
+  e.className = "cell";
+  e.dataset.l = level(d.count);
+  e.dataset.tip = `<b>${d.count}</b> COIN${d.count === 1 ? "" : "S"}<br>${fmt(d.date)}`;
+  grid.appendChild(e); cells.push(e);
+});
+const columns = [];
+[...grid.querySelectorAll(".cell")].forEach((e, i) => {
+  const c = Math.floor(i / 7); (columns[c] ||= []).push(e);
+});
+
+// Month labels
+const step = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cell")) + 3;
+let lastMonth = -1;
+days.forEach((d, i) => {
+  const m = d.date.getUTCMonth();
+  if (m !== lastMonth && d.date.getUTCDate() <= 7) {
+    const col = Math.floor((i + lead) / 7);
+    const s = document.createElement("span");
+    s.textContent = MONTHS[m]; s.style.left = (col * step) + "px";
+    $("#months").appendChild(s);
+    lastMonth = m;
+  }
+});
+
+// Tooltip
+const tip = $("#tip");
+grid.addEventListener("mousemove", (e) => {
+  const t = e.target.closest(".cell.on");
+  if (!t || !t.dataset.tip) { tip.style.opacity = 0; return; }
+  tip.innerHTML = t.dataset.tip; tip.style.opacity = 1;
+  const r = t.getBoundingClientRect();
+  tip.style.left = (r.left + r.width / 2) + "px"; tip.style.top = r.top + "px";
+});
+grid.addEventListener("mouseleave", () => tip.style.opacity = 0);
+
+// ---------- Achievements ----------
+const ACH = [
+  { ico: "★", t: "1UP: HELLO WORLD", d: "First GitHub login, Dec 2015", ok: true },
+  { ico: "⚡", t: "COMBO x" + bestDay.count, d: bestDay.count + " contributions on " + fmt(bestDay.date), ok: bestDay.count >= 50 },
+  { ico: "♦", t: "COIN COLLECTOR", d: total + " contributions in 12 months", ok: total >= 500 },
+  { ico: "▲", t: "ENDURANCE RUN", d: streak + " days in a row without a break", ok: streak >= 7 },
+  { ico: "◆", t: topLang ? topLang[0].toUpperCase() + " WIZARD" : "PHP WIZARD", d: topLang ? `${topLang[1]} of ${PROFILE.repos} public repos speak ${topLang[0]}` : "23 of 30 repos speak PHP", ok: true },
+  { ico: "☾", t: "WEEKEND WARRIOR", d: weekend + " contributions on Sat/Sun", ok: weekend > 0 },
+  { ico: "✉", t: "SECRET LEVELS", d: "Most quests happen in private repos", ok: true },
+  { ico: "?", t: "???", d: "1000 contributions in a year", ok: total >= 1000 },
+];
+const achEl = $("#ach");
+ACH.forEach(a => {
+  const b = document.createElement("div");
+  b.className = "badge" + (a.ok ? "" : " locked");
+  b.innerHTML = `<div class="ico">${a.ok ? a.ico : "?"}</div><div><div class="t pixel">${a.ok ? a.t : "LOCKED"}</div><div class="d">${a.d}</div></div>`;
+  achEl.appendChild(b);
+});
+
+// ---------- Sound (Web Audio chiptune blips) ----------
+let audio = null, soundOn = true;
+const sndBtn = $("#sound");
+function beep(freq, dur = 0.06, type = "square", vol = 0.05, when = 0) {
+  if (!soundOn) return;
+  try {
+    audio ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = audio.currentTime + when;
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(audio.destination); o.start(t); o.stop(t + dur);
+  } catch (e) { /* audio unavailable */ }
+}
+const jingle = () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => beep(f, 0.12, "square", 0.05, i * 0.09));
+const coin = () => { beep(988, 0.07); beep(1319, 0.25, "square", 0.05, 0.07); };
+function setSound(on) {
+  soundOn = on;
+  sndBtn.textContent = on ? "♪ SOUND ON" : "♪ SOUND OFF";
+  sndBtn.setAttribute("aria-pressed", on);
+}
+sndBtn.addEventListener("click", (e) => { e.stopPropagation(); setSound(!soundOn); });
+
+// ---------- Play sequence ----------
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let timers = [];
+const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+
+function countUp(el, to, ms) {
+  const t0 = performance.now();
+  const tick = (now) => {
+    const p = Math.min(1, (now - t0) / ms);
+    el.textContent = Math.round(to * p);
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function reset() {
+  timers.forEach(clearTimeout); timers = [];
+  cells.forEach(c => c.classList.remove("on"));
+  document.querySelectorAll(".badge").forEach(b => b.classList.remove("on"));
+  document.querySelectorAll("[data-count]").forEach(e => e.textContent = 0);
+  $("#total").textContent = 0; $("#hud-score").textContent = "000000";
+  $("#xp").style.width = 0; $("#lvl").textContent = "LV ??"; $("#xp-txt").textContent = "";
+  inv.style.opacity = 0;
+}
+
+function play() {
+  reset();
+  const COL_MS = reduce ? 0 : 45;
+  let running = 0, frame = 0;
+  inv.style.opacity = reduce ? 0 : 1;
+  columns.forEach((col, ci) => {
+    later(() => {
+      col.forEach(c => c.classList.add("on"));
+      inv.style.left = (ci * step - 4) + "px";
+      if (ci % 3 === 0) drawSprite(inv, (frame++ % 2) ? INVADER_B : INVADER, { X: "#ff5c8a" });
+      const colSum = col.reduce((a, c) => a + (c.dataset.l ? +c.dataset.l : 0), 0);
+      running += col.reduce((a, c) => { const i = cells.indexOf(c); return a + (i >= 0 ? days[i].count : 0); }, 0);
+      $("#total").textContent = running;
+      $("#hud-score").textContent = pad(running, 6);
+      if (colSum > 0 && ci % 2 === 0) beep(220 + colSum * 45, 0.04, "square", 0.025);
+    }, 300 + ci * COL_MS);
+  });
+  const done = 300 + columns.length * COL_MS + 200;
+  later(() => {
+    inv.style.opacity = 0;
+    jingle();
+    $("#lvl").textContent = "LV " + LV;
+    $("#xp").style.width = (XP_IN / 25 * 100) + "%";
+    $("#xp-txt").textContent = XP_IN + "/25 XP";
+    document.querySelectorAll("[data-count]").forEach(e => countUp(e, STATS[e.dataset.count], reduce ? 0 : 900));
+  }, done);
+  document.querySelectorAll(".badge").forEach((b, i) => later(() => {
+    b.classList.add("on");
+    if (!b.classList.contains("locked")) coin();
+  }, done + 1100 + i * (reduce ? 0 : 220)));
+}
+
+// ---------- Title screen ----------
+const stars = $("#stars");
+for (let i = 0; i < 60; i++) {
+  const s = document.createElement("i");
+  s.style.left = Math.random() * 100 + "%"; s.style.top = Math.random() * 100 + "%";
+  s.style.animationDelay = (Math.random() * 2) + "s";
+  stars.appendChild(s);
+}
+const title = $("#title");
+function start_() {
+  if (title.classList.contains("gone")) return;
+  title.classList.add("gone");
+  coin(); play();
+}
+title.addEventListener("click", start_);
+$("#press").textContent = "▶ PRESS START";
+addEventListener("keydown", (e) => {
+  if (e.key === "s" || e.key === "S") return setSound(!soundOn);
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    if (!title.classList.contains("gone")) start_(); else play();
+  }
+});
+} // boot
+</script>
 </body>
 </html>
